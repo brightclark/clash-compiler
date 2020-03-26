@@ -186,6 +186,8 @@ library
                       Clash.GHC.LoadModules
                       Clash.GHC.NetlistTypes
 
+                      Clash.GHC.PartialEval
+
                       Clash.GHCi.Common
 
   Other-Modules:      Clash.GHCi.UI
