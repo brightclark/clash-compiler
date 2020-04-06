@@ -290,9 +290,11 @@ quoteTickWith quote x t = do
 quoteNeVar :: Id -> State Env (Neutral Nf)
 quoteNeVar = pure . NeVar
 
+-- TODO Add lambdas
 quoteNeData :: DataCon -> [Either Value Type] -> State Env (Neutral Nf)
-quoteNeData dc = error ("quoteNeData: " <> show dc)
+quoteNeData dc = pure . NeData dc
 
+-- TODO Add lambdas
 quoteNePrim :: PrimInfo -> [Either Value Type] -> State Env (Neutral Nf)
 quoteNePrim p = pure . NePrim p
 

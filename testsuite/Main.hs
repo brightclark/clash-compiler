@@ -582,6 +582,12 @@ runClashTest = defaultMain $ clashTestRoot
         , clashLibTest ("tests" </> "shouldwork" </> "XOptimization") allTargets [] "OneDefinedDefaultPat" "main"
         , clashLibTest ("tests" </> "shouldwork" </> "XOptimization") allTargets [] "ManyDefined" "main"
         ]
+#if EXPERIMENTAL_EVALUATOR
+      , clashTestGroup "PartialEvaluation"
+        [ clashLibTest ("tests" </> "shouldwork" </> "PartialEvaluation") allTargets [] "NeData" "main"
+        , clashLibTest ("tests" </> "shouldwork" </> "PartialEvaluation") allTargets [] "NePrim" "main"
+        ]
+#endif
       ] -- end shouldwork
     ] -- end tests
   ] -- end .

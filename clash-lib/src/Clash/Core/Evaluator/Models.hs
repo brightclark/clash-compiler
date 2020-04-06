@@ -135,8 +135,6 @@ lookupGlobal i = lookupVarEnv i . envGlobals
 lookupPrim :: Int -> Env -> Maybe Value
 lookupPrim i = IntMap.lookup i . fst . envPrimsIO
 
--- insert
-
 -- | Add a new type to the environment. The unique for the new
 -- element is guaranteed to be unique within the environment.
 --
@@ -175,8 +173,6 @@ insertPrim v env =
  where
   (pm, n) = envPrimsIO env
 
--- update
-
 -- | Update a local binding in the environment. If the Id is not in the
 -- local environment, the original environment is returned.
 --
@@ -208,8 +204,6 @@ updatePrim i v env =
   env { envPrimsIO = (IntMap.insert i v pm, n) }
  where
   (pm, n) = envPrimsIO env
-
--- delete
 
 deleteLocal :: Id -> Env -> Env
 deleteLocal = deletePure LocalId
