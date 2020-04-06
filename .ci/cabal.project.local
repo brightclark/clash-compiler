@@ -9,11 +9,11 @@ package clash-lib
   ghc-options: -Werror
   documentation: True
   tests: True
-  flags: +debug
+  flags: +debug -experimental-evaluator
 package clash-prelude
   ghc-options: -Werror
   documentation: True
-  flags: +doctests
+  flags: +doctests -experimental-evaluator
   tests: True
   benchmarks: True
 package clash-cosim
@@ -28,14 +28,17 @@ package clash-cores
 package clash-testsuite
   ghc-options: -Werror
   -- enable cosim
-  flags: cosim
+  flags: +cosim -experimental-evaluator
 
 package clash-ghc
   ghc-options: -Werror
+  flags: -experimental-evalautor
 
 package clash-benchmark
   ghc-options: -Werror
+  flags: -experimental-evaluator
 package clash-profiling
   ghc-options: -Werror
+  flags: -experimental-evaluator
 package clash-profiling-prepare
   ghc-options: -Werror
