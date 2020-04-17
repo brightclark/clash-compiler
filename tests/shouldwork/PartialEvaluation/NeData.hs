@@ -49,14 +49,14 @@ testPath = "tests/shouldwork/PartialEvaluation/NeData.hs"
 
 findBinding :: Text -> BindingMap -> TyConMap -> Nf
 findBinding name bm tcm =
-  case List.find isTopEntity (eltsVarEnv bm) of
-    Just te ->
+  case List.find byName (eltsVarEnv bm) of
+    Just bd ->
       fst $ partialEval ghcEvaluator bm (mempty, 0)
-        tcm emptyInScopeSet undefined (bindingTerm te)
+        tcm emptyInScopeSet undefined (bindingTerm bd)
 
     Nothing -> error ("No entity in module: " <> show name)
  where
-  isTopEntity b =
+  byName b =
     name == nameOcc (varName $ bindingId b)
 
 assertNeData :: Nf -> IO ()

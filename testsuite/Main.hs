@@ -584,7 +584,8 @@ runClashTest = defaultMain $ clashTestRoot
         ]
 #if EXPERIMENTAL_EVALUATOR
       , clashTestGroup "PartialEvaluation"
-        [ clashLibTest ("tests" </> "shouldwork" </> "PartialEvaluation") allTargets [] "NeData" "main"
+        [ clashLibTest ("tests" </> "shouldwork" </> "PartialEvaluation") allTargets [] "CaseAlts" "main"
+        , clashLibTest ("tests" </> "shouldwork" </> "PartialEvaluation") allTargets [] "NeData" "main"
         , clashLibTest ("tests" </> "shouldwork" </> "PartialEvaluation") allTargets [] "NePrim" "main"
         ]
 #endif
