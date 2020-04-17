@@ -38,6 +38,7 @@ import           Data.Functor.Const          (Const (..))
 import           Data.List                   (group, partition, sort)
 import           Data.List.Extra             (allM, partitionM)
 import qualified Data.Map                    as Map
+import qualified Data.Map.Strict             as StrictMap
 import           Data.Maybe                  (catMaybes,isJust,mapMaybe)
 import qualified Data.Monoid                 as Monoid
 import qualified Data.Set                    as Set
@@ -59,7 +60,7 @@ import           BasicTypes                  (InlineSpec (..))
 import           Clash.Core.DataCon          (dcExtTyVars)
 
 #if EXPERIMENTAL_EVALUATOR
-import           Clash.Core.Evaluator.Models (partialEval, asTerm)
+import           Clash.Core.Evaluator.Models
 #else
 import           Clash.Core.Evaluator.Types  (PureHeap, whnf')
 #endif
@@ -1086,10 +1087,10 @@ whnfRW _isSubj ctx@(TransformContext is0 _) e rw = do
   gh <- Lens.use globalHeap
 
 #if EXPERIMENTAL_EVALUATOR
-  case partialEval eval bndrs gh tcm is0 ids1 e of
-    (!e', !gh') -> do
+  case nf eval bndrs gh tcm is0 ids1 e of
+    (!e', !gh', !ph') -> do
       globalHeap Lens..= gh'
-      rw ctx (asTerm e')
+      bindPureHeap tcm ph' rw ctx (asTerm e')
 #else
   case whnf' eval bndrs tcm gh ids1 is0 _isSubj e of
     (!gh1,ph,v) -> do
@@ -1098,30 +1099,37 @@ whnfRW _isSubj ctx@(TransformContext is0 _) e rw = do
 #endif
 {-# SCC whnfRW #-}
 
-#ifndef EXPERIMENTAL_EVALUATOR
 -- | Binds variables on the PureHeap over the result of the rewrite
 --
 -- To prevent unnecessary rewrites only do this when rewrite changed something.
 bindPureHeap
   :: TyConMap
+#if EXPERIMENTAL_EVALUATOR
+  -> EnvTmMap
+#else
   -> PureHeap
+#endif
   -> Rewrite extra
   -> Rewrite extra
-bindPureHeap tcm heap rw (TransformContext is0 hist) e = do
+bindPureHeap _tcm heap rw (TransformContext is0 hist) e = do
   (e1, Monoid.getAny -> hasChanged) <- Writer.listen $ rw ctx e
   if hasChanged && not (null bndrs)
     then return $ Letrec bndrs e1
     else return e1
   where
-    bndrs = map toLetBinding $ toListUniqMap heap
     heapIds = map fst bndrs
     is1 = extendInScopeSetList is0 heapIds
     ctx = TransformContext is1 (LetBody heapIds : hist)
 
+#if EXPERIMENTAL_EVALUATOR
+    bndrs = StrictMap.toList (fmap asTerm heap)
+#else
+    bndrs = map toLetBinding $ toListUniqMap heap
+
     toLetBinding :: (Unique,Term) -> LetBinding
     toLetBinding (uniq,term) = (nm, term)
       where
-        ty = termType tcm term
+        ty = termType _tcm term
         nm = mkLocalId ty (mkUnsafeSystemName "x" uniq) -- See [Note: Name re-creation]
 #endif
 

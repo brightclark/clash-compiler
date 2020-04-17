@@ -7,10 +7,10 @@ import Data.Text (Text)
 
 import Clash.Prelude
 
-import Clash.Core.Evaluator.Models (Neutral(..), Nf(..), partialEval)
+import Clash.Core.Evaluator.Models
 import Clash.Core.Literal (Literal(..))
 import Clash.Core.Name (Name(..))
-import Clash.Core.Term (PrimInfo(..))
+import Clash.Core.Term
 import Clash.Core.TyCon (TyConMap)
 import Clash.Core.Var (Var(..))
 import Clash.Core.VarEnv (eltsVarEnv, emptyInScopeSet)
@@ -41,9 +41,9 @@ topEntityUnknown = caseExpr
 
 caseExpr :: Int -> Int
 caseExpr x = case x of
-  0             -> 4
-  y | even y    -> y
-    | otherwise -> y + 1
+  0 -> 1
+  1 -> 0
+  n -> n
 {-# INLINE caseExpr #-}
 
 testPath :: FilePath
@@ -53,16 +53,18 @@ findBinding :: Text -> BindingMap -> TyConMap -> Nf
 findBinding name bm tcm =
   case List.find byName (eltsVarEnv bm) of
     Just bd ->
-      fst $ partialEval ghcEvaluator bm (mempty, 0)
+      fst3 $ nf ghcEvaluator bm (mempty, 0)
         tcm emptyInScopeSet undefined (bindingTerm bd)
 
     Nothing -> error ("No entity in module: " <> show name)
  where
+  fst3 (x, _, _) = x
+
   byName b = name == nameOcc (varName $ bindingId b)
 
 assertKnownAlt :: Nf -> IO ()
 assertKnownAlt nf
-  | NPrim p [Left (NLit (IntLiteral 4))] <- nf
+  | NPrim p [Left (NLit (IntLiteral 1))] <- nf
   , primName p == "GHC.Types.I#"
   = pure ()
 

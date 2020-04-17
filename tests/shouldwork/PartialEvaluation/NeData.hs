@@ -4,13 +4,14 @@ module NeData where
 
 import qualified Data.List as List (find)
 import Data.Text (Text)
-import Debug.Trace
 
 import Clash.Prelude
 
+import Clash.Backend
 import Clash.Core.DataCon (dcName)
-import Clash.Core.Evaluator.Models (Neutral(..), Nf(..), partialEval)
+import Clash.Core.Evaluator.Models
 import Clash.Core.Name (Name(..))
+import Clash.Core.Term
 import Clash.Core.TyCon (TyConMap)
 import Clash.Core.TysPrim (intPrimTy)
 import Clash.Core.Var (Var(..))
@@ -24,87 +25,73 @@ import Test.Tasty.Clash.CoreTest
 
 -- Top entity for NeData on a non-record type.
 --
-topEntityNonRecord :: Int -> Maybe Int
-topEntityNonRecord = Just
-{-# NOINLINE topEntityNonRecord #-}
-{-# ANN topEntityNonRecord (Synthesize
-        { t_name   = "topEntityNonRecord"
-        , t_inputs = [PortName "just"]
-        , t_output = PortName "res" })
-    #-}
-
-data Misschien a = Niets | Iets { iets :: a }
-
-topEntityRecord :: Int -> Misschien Int
-topEntityRecord = Iets
-{-# NOINLINE topEntityRecord #-}
-{-# ANN topEntityRecord (Synthesize
-        { t_name   = "topEntityRecord"
-        , t_inputs = [PortName "iets"]
-        , t_output = PortName "res" })
-    #-}
+topEntity :: Int -> Maybe Int
+topEntity = Just
 
 testPath :: FilePath
 testPath = "tests/shouldwork/PartialEvaluation/NeData.hs"
 
-findBinding :: Text -> BindingMap -> TyConMap -> Nf
-findBinding name bm tcm =
+findBinding :: BindingMap -> TyConMap -> Nf
+findBinding bm tcm =
   case List.find byName (eltsVarEnv bm) of
     Just bd ->
-      fst $ partialEval ghcEvaluator bm (mempty, 0)
+      fst3 $ nf ghcEvaluator bm (mempty, 0)
         tcm emptyInScopeSet undefined (bindingTerm bd)
 
-    Nothing -> error ("No entity in module: " <> show name)
+    Nothing -> error ("No topEntity in module")
  where
-  byName b =
-    name == nameOcc (varName $ bindingId b)
+  fst3 (x, _, _) = x
 
-assertNeData :: Nf -> IO ()
-assertNeData nf
-  | NLam i x <- nf
+  byName b =
+    "NeData.topEntity" == nameOcc (varName $ bindingId b)
+
+assertNf :: Nf -> IO ()
+assertNf nf
+  | NNeu n <- nf
+  = case n of
+      NeData dc [Right ty]
+        |  "GHC.Maybe.Just" == nameOcc (dcName dc)
+        -> pure ()
+
+        |  otherwise -> error "assertNf: Unexpected arguments"
+
+      _ -> error ("assertNf: Expected NeData, got " <> show n)
+
+  | otherwise
+  = error ("assertNf: Expected NNeu, got " <> show nf)
+
+assertTerm :: Term -> IO ()
+assertTerm term
+  | Lam i x <- term
   = case x of
-      NData dc [Right ty, Left v]
-        |  dcn <- nameOcc (dcName dc)
-        ,  NNeu (NeVar j) <- v
-        ,  dcn == "GHC.Maybe.Just" || dcn == "NeData.Iets"
-        ,  ty == intPrimTy
+      App (TyApp (Data dc) ty) (Var j)
+        |  "GHC.Maybe.Just" == nameOcc (dcName dc)
+        ,  intPrimTy == ty
         ,  i == j
         -> pure ()
 
-        |  otherwise -> error "assertNeData: Unexpected arguments"
-
-      _ -> error ("assertNeData: Expected NData, got " <> show x)
+      _ -> error ("assertTerm: Expected App, got " <> show x)
 
   | otherwise
-  = error ("assertNeData: Normal form is not lambda")
+  = error ("assertTerm: Expected Lam, got " <> show term)
+
+mainCommon
+  :: (Backend (TargetToState target))
+  => SBuildTarget target
+  -> IO ()
+mainCommon hdl = do
+  (bm, tcm) <- runToCoreStage hdl id testPath
+  let entity = findBinding bm tcm
+
+  assertNf entity
+  assertTerm (asTerm entity)
 
 mainVHDL :: IO ()
-mainVHDL = do
-  (bm, tcm) <- runToCoreStage SVHDL id testPath
-
-  let teNonRecord = findBinding "NeData.topEntityNonRecord" bm tcm
-      teRecord    = findBinding "NeData.topEntityRecord" bm tcm
-
-  assertNeData teNonRecord
-  assertNeData teRecord
+mainVHDL = mainCommon SVHDL
 
 mainVerilog :: IO ()
-mainVerilog = do
-  (bm, tcm) <- runToCoreStage SVerilog id testPath
-
-  let teNonRecord = findBinding "NeData.topEntityNonRecord" bm tcm
-      teRecord    = findBinding "NeData.topEntityRecord" bm tcm
-
-  assertNeData teNonRecord
-  assertNeData teRecord
+mainVerilog = mainCommon SVerilog
 
 mainSystemVerilog :: IO ()
-mainSystemVerilog = do
-  (bm, tcm) <- runToCoreStage SSystemVerilog id testPath
-
-  let teNonRecord = findBinding "NeData.topEntityNonRecord" bm tcm
-      teRecord    = findBinding "NeData.topEntityRecord" bm tcm
-
-  assertNeData teNonRecord
-  assertNeData teRecord
+mainSystemVerilog = mainCommon SSystemVerilog
 

@@ -7,9 +7,11 @@ import Data.Text (Text)
 
 import Clash.Prelude
 
-import Clash.Core.Evaluator.Models (Neutral(..), Nf(..), partialEval)
+import Clash.Backend
+import Clash.Core.Evaluator.Models
 import Clash.Core.Name (Name(..))
-import Clash.Core.Term (PrimInfo(..))
+import Clash.Core.Term
+import Clash.Core.Type
 import Clash.Core.TyCon (TyConMap)
 import Clash.Core.TysPrim (intPrimTy)
 import Clash.Core.Var (Var(..))
@@ -27,55 +29,67 @@ topEntity = error
 testPath :: FilePath
 testPath = "tests/shouldwork/PartialEvaluation/NePrim.hs"
 
-findBinding :: Text -> BindingMap -> TyConMap -> Nf
-findBinding name bm tcm =
+findBinding :: BindingMap -> TyConMap -> Nf
+findBinding bm tcm =
   case List.find byName (eltsVarEnv bm) of
     Just bd ->
-      fst $ partialEval ghcEvaluator bm (mempty, 0)
+      fst3 $ nf ghcEvaluator bm (mempty, 0)
         tcm emptyInScopeSet undefined (bindingTerm bd)
 
-    Nothing -> error ("No entity in module: " <> show name)
+    Nothing -> error ("No topEntity in module")
  where
-  byName b =
-    name == nameOcc (varName $ bindingId b)
+  fst3 (x, _, _) = x
 
-assertNePrim :: Nf -> IO ()
-assertNePrim nf
-  | NLam i x <- nf
+  byName b =
+    "NePrim.topEntity" == nameOcc (varName $ bindingId b)
+
+assertNf :: Nf -> IO ()
+assertNf nf
+  | NNeu n <- nf
+  = case n of
+      NePrim p [Right _runtimeRep, Right ty, Left _callStack]
+        |  ConstTy (TyCon tcN) <- ty
+        ,  "GHC.Err.error" == primName p
+        ,  "GHC.Types.Int" == nameOcc tcN
+        -> pure ()
+
+      _ -> error ("assertNf: Expected NePrim, got " <> show n)
+
+  | otherwise
+  = error ("assertNePrim: Expected NNeu, got " <> show nf)
+
+assertTerm :: Term -> IO ()
+assertTerm term
+  | Lam i x <- term
   = case x of
-      NPrim p [Right _runtimeRep, Right ty, Left v]
-        |  NNeu (NeVar j) <- v
-        ,  primName p == "GHC.Err.error"
-        ,  ty == intPrimTy
+      App (TyApp (TyApp (Prim p) _rr) ty) (Var j)
+        |  "GHC.Err.error" == primName p
+        ,  intPrimTy == ty
         ,  i == j
         -> pure ()
 
-        |  otherwise
-        -> error "assertNePrim: Unexpected arguments"
-
-      _ -> error ("assertNePrim: Expected NPrim, got " <> show x)
+      _ -> error ("assertTerm: Expected App, got " <> show x)
 
   | otherwise
-  = error ("assertNePrim: Normal form is not lambda")
+  = error ("assertTerm: Expected Lam, got " <> show term)
+
+mainCommon
+  :: (Backend (TargetToState target))
+  => SBuildTarget target
+  -> IO ()
+mainCommon hdl = do
+  (bm, tcm) <- runToCoreStage hdl id testPath
+  let entity = findBinding bm tcm
+
+  assertNf entity
+  assertTerm (asTerm entity)
 
 mainVHDL :: IO ()
-mainVHDL = do
-  (bm, tcm) <- runToCoreStage SVHDL id testPath
-
-  let te = findBinding "NePrim.topEntity" bm tcm
-  assertNePrim te
+mainVHDL = mainCommon SVHDL
 
 mainVerilog :: IO ()
-mainVerilog = do
-  (bm, tcm) <- runToCoreStage SVerilog id testPath
-
-  let te = findBinding "NePrim.topEntity" bm tcm
-  assertNePrim te
+mainVerilog = mainCommon SVerilog
 
 mainSystemVerilog :: IO ()
-mainSystemVerilog = do
-  (bm, tcm) <- runToCoreStage SSystemVerilog id testPath
-
-  let te = findBinding "NePrim.topEntity" bm tcm
-  assertNePrim te
+mainSystemVerilog = mainCommon SSystemVerilog
 
