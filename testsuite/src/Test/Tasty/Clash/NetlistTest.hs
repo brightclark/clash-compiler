@@ -21,6 +21,7 @@ module Test.Tasty.Clash.NetlistTest
 import qualified Prelude as P
 import           Clash.Prelude
 
+import           Clash.Annotations.Primitive (HDL(..))
 import           Clash.Annotations.BitRepresentation.Internal
 import           Clash.Backend as Backend
 import           Clash.Backend.SystemVerilog
@@ -30,12 +31,14 @@ import           Clash.Core.Name
 import           Clash.Core.TyCon
 import           Clash.Core.Type
 import           Clash.Core.Var
+import           Clash.Core.VarEnv (mkVarEnv)
 import           Clash.Driver as Driver
 import           Clash.Driver.Types
 import           Clash.GHC.Evaluator
 import           Clash.GHC.GenerateBindings
 import           Clash.GHC.NetlistTypes
 import           Clash.Netlist
+import qualified Clash.Netlist.Id as Id
 import           Clash.Netlist.BlackBox.Types (HdlSyn(Other))
 import           Clash.Netlist.Types hiding (backend, hdlDir)
 import           Clash.Util
@@ -45,9 +48,6 @@ import           Util
 import qualified Control.Concurrent.Supply as Supply
 import           Control.DeepSeq (force)
 import           Control.Monad.State.Strict (State)
-import qualified Control.Monad.State as State
-import           Data.HashMap.Strict (HashMap)
-import qualified Data.HashMap.Strict as HashMap
 import           Data.Maybe
 import qualified Data.Text as Text
 import           System.FilePath ((</>))
@@ -68,7 +68,7 @@ mkClashOpts = defClashOpts
   , opt_floatSupport = True
   }
 
-type family TargetToState (target :: BuildTarget) where
+type family TargetToState (target :: HDL) where
   TargetToState 'VHDL          = VHDLState
   TargetToState 'Verilog       = VerilogState
   TargetToState 'SystemVerilog = SystemVerilogState
@@ -86,39 +86,38 @@ runToNetlistStage
   -- ^ Function to modify the default clash options
   -> FilePath
   -- ^ Module to load
-  -> IO [([Bool], SrcSpan, HashMap Identifier Word, Component)]
+  -> IO [([Bool], SrcSpan, Id.IdentifierSet, Component)]
 runToNetlistStage target f src = do
   pds <- primDirs backend
   (bm, tcm, tupTcm, tes, pm, rs)
     <- generateBindings Auto pds (opt_importPaths opts) [] (hdlKind backend) src Nothing
 
-  let teNames = fmap topId tes
+  let (compNames, initIs) = genTopNames Nothing True hdl tes
+      teNames = fmap topId tes
       te      = topId (P.head tes)
       reprs   = buildCustomReprs rs
+      tes2    = mkVarEnv (P.zip (P.map topId tes) tes)
 
   supplyN <- Supply.newSupply
 
   let transformedBindings = normalizeEntity reprs bm pm tcm tupTcm typeTrans
           evaluator teNames opts supplyN te
 
-  fmap (force . fst) $ netlistFrom (transformedBindings, tcm, tes, pm, reprs, te)
+  fmap (\(_,x,_) -> force x) $ netlistFrom (transformedBindings, tcm, tes2, compNames, pm, reprs, te, initIs)
  where
   backend = mkBackend target
   opts = f mkClashOpts
+  hdl = buildTargetToHdl target
 
-  netlistFrom (bm, tcm, tes, pm, rs, te) =
-    genNetlist False opts rs bm tes pm tcm typeTrans
-      iw mkId1 extId ite (SomeBackend hdlSt) seen hdlDir prefixM te
+  netlistFrom (bm, tcm, tes, compNames, pm, rs, te, seen) =
+    genNetlist False opts rs bm tes compNames pm tcm typeTrans
+      iw ite (SomeBackend hdlSt) seen hdlDir Nothing te
    where
     iw      = opt_intWidth opts
     teS     = Text.unpack . nameOcc $ varName te
     modN    = takeWhile (/= '.') teS
     hdlSt   = setModName (Text.pack modN) backend
-    mkId1   = State.evalState mkIdentifier hdlSt
-    extId   = State.evalState extendIdentifier hdlSt
-    prefixM = ComponentPrefix Nothing Nothing
     ite     = ifThenElseExpr hdlSt
-    seen    = HashMap.empty
     hdlDir  = fromMaybe "." (opt_hdlDir opts)
       </> Backend.name hdlSt
       </> takeWhile (/= '.') teS

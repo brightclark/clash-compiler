@@ -85,7 +85,7 @@ data ClashOpts = ClashOpts { opt_inlineLimit :: Int
                            , opt_errorExtra  :: Bool
                            , opt_floatSupport :: Bool
                            , opt_importPaths :: [FilePath]
-                           , opt_componentPrefix :: Maybe String
+                           , opt_componentPrefix :: Maybe Text
                            , opt_newInlineStrat :: Bool
                            , opt_escapedIds :: Bool
                            , opt_ultra :: Bool

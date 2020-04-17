@@ -9,6 +9,7 @@ module Test.Tasty.Clash.CoreTest
   ( runToCoreStage
   ) where
 
+import Clash.Annotations.Primitive (HDL(..))
 import Clash.Backend
 import Clash.Backend.SystemVerilog
 import Clash.Backend.Verilog
@@ -22,7 +23,7 @@ import Util
 
 import Test.Tasty.Clash
 
-type family TargetToState (target :: BuildTarget) where
+type family TargetToState (target :: HDL) where
   TargetToState 'SystemVerilog = SystemVerilogState
   TargetToState 'VHDL          = VHDLState
   TargetToState 'Verilog       = VerilogState
