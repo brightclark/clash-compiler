@@ -410,7 +410,7 @@ data Declaration
   -- | Instantiation of another component:
   | InstDecl
       EntityOrComponent                  -- FIELD Whether it's an entity or a component
-      (Maybe Comment)                    -- FIELD Comment to add to the generated code
+      (Maybe Text)                       -- FIELD Library instance is defined in
       !Identifier                        -- FIELD The component's (or entity's) name
       !Identifier                        -- FIELD Instance label
       [(Expr,HWType,Expr)]               -- FIELD List of parameters for this component (param name, param type, param value)
