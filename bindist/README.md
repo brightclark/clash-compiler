@@ -30,6 +30,7 @@ triggered on any other branch a _beta_ release gets made.
   * `clash-prelude/clash-prelude.cabal`
   * `clash-lib/clash-lib.cabal`
   * `clash-ghc/clash-ghc.cabal`
+  * `clash-cores/clash-cores.cabal`
   * `bindist/linux/snap/snap/snapcraft.yaml`
   * `docs/conf.py`
   * `README.md`
