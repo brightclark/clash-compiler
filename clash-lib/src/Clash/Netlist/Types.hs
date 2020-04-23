@@ -22,7 +22,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
--- since GHC 8.6 we can haddock individual contructor fields \o/
+-- since GHC 8.6 we can haddock individual constructor fields \o/
 #if __GLASGOW_HASKELL__ >= 806
 #define FIELD ^
 #endif
@@ -121,6 +121,7 @@ newtype NetlistMonad a =
 
 type HWMap = HashMap Type (Either String FilteredHWType)
 
+-- | See 'is_freshCache'
 type FreshCache = HashMap Text (IntMap Word)
 
 -- See: http://vhdl.renerta.com/mobile/source/vhd00037.htm
