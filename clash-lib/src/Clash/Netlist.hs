@@ -113,11 +113,14 @@ genNetlist
   -> Id
   -- ^ Name of the @topEntity@
   -> IO (Component, [([Bool],SrcSpan,IdentifierSet,Component)], IdentifierSet)
-genNetlist isTb opts reprs globals tops topNames primMap tcm typeTrans iw ite be seen env prefixM topEntity = do
+genNetlist isTb opts reprs globals tops topNames primMap tcm typeTrans iw ite be seen0 env prefixM topEntity = do
   ((_wereVoids, _sp, _is, topComponent), s) <-
-    runNetlistMonad isTb opts reprs globals tops topNames primMap tcm typeTrans
-                    iw ite be seen env prefixM $ genComponent topEntity
-  return (topComponent, eltsVarEnv (_components s), _seenIds s)
+    runNetlistMonad isTb opts reprs globals tops primMap tcm typeTrans
+                    iw ite be seen1 env componentNames_ $ genComponent topEntity
+  return (topComponent, eltsVarEnv (_components s), seen1)
+ where
+  (componentNames_, seen1) =
+    genNames (opt_newInlineStrat opts) prefixM seen0 topNames globals
 
 -- | Run a NetlistMonad action in a given environment
 runNetlistMonad
@@ -131,8 +134,6 @@ runNetlistMonad
   -- ^ Global binders
   -> VarEnv TopEntityT
   -- ^ TopEntity annotations
-  -> VarEnv Identifier
-  -- ^ Top entity names
   -> CompiledPrimMap
   -- ^ Primitive Definitions
   -> TyConMap
@@ -150,12 +151,13 @@ runNetlistMonad
   -- ^ Seen components
   -> FilePath
   -- ^ HDL dir
-  -> Maybe StrictText.Text
-  -- ^ Component name prefix
+  -> VarEnv Identifier
+  -- ^ Seen components
   -> NetlistMonad a
   -- ^ Action to run
   -> IO (a, NetlistState)
-runNetlistMonad isTb opts reprs s tops topNames p tcm typeTrans iw ite be seenIds0 env prefixM
+runNetlistMonad isTb opts reprs s tops p tcm typeTrans iw
+                ite be seenIds_ env componentNames_
   = flip runReaderT (NetlistEnv "" "" Nothing)
   . flip runStateT s'
   . runNetlist
@@ -169,8 +171,8 @@ runNetlistMonad isTb opts reprs s tops topNames p tcm typeTrans iw ite be seenId
         , _tcCache=tcm
         , _curCompNm=(error "genComponent should have set _curCompNm", noSrcSpan)
         , _intWidth=iw
-        , _seenIds=seenIds1
-        , _seenComps=seenIds1
+        , _seenIds=seenIds_
+        , _seenComps=seenIds_
         , _seenPrimitives=Set.empty
         , _componentNames=componentNames_
         , _topEntityAnns=tops
@@ -183,9 +185,6 @@ runNetlistMonad isTb opts reprs s tops topNames p tcm typeTrans iw ite be seenId
         , _backend=be
         , _htyCache=HashMapS.empty
         }
-
-    (componentNames_, seenIds1) =
-      genNames (opt_newInlineStrat opts) prefixM seenIds0 topNames s
 
 -- | Generate names for all binders in "BindingMap", execpt for the ones already
 -- present in given identifier varenv.
