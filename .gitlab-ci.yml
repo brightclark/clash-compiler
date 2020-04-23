@@ -40,6 +40,14 @@ stages:
 # Test jobs:
 ghc-8.4.4:
   extends: .tests-interruptible
+
+  artifacts:
+    when: always
+    paths:
+      - clash-testsuite.log
+
+    expire_in: 1 week
+
 #ghc-8.6.5:
 #  extends: .tests
 ghc-8.8.2:

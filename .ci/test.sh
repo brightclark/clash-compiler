@@ -51,4 +51,6 @@ fi
 
 # Run actual tests
 cabal new-test clash-cores clash-cosim clash-prelude clash-lib
-cabal new-run -- clash-testsuite -j$THREADS --hide-successes -p "/.VHDL./ || /.Verilog./"
+cabal new-run -- clash-testsuite -j$THREADS --hide-successes -p "/.VHDL./ || /.Verilog./" \
+    |& tee $ROOT/clash-testsuite.log
+
