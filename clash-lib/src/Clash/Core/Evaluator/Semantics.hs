@@ -21,8 +21,8 @@ module Clash.Core.Evaluator.Semantics
   , quoteCastWith
   , quoteTickWith
   , quoteNeVar
-  , quoteNeData
-  , quoteNePrim
+  , quoteNeDataWith
+  , quoteNePrimWith
   , quoteNeAppWith
   , quoteNeTyAppWith
   , quoteNeCaseWith
@@ -30,8 +30,11 @@ module Clash.Core.Evaluator.Semantics
 
 import Control.Monad.State.Strict (State)
 import qualified Control.Monad.State.Strict as State
+import Data.Bifunctor (first)
 import Data.Bitraversable (bitraverse)
+import Data.Either
 import Data.Foldable (foldl')
+import Data.Traversable (mapAccumL)
 
 import BasicTypes (InlineSpec(..))
 
@@ -39,6 +42,7 @@ import Clash.Core.DataCon
 import Clash.Core.Evaluator.Models
 import Clash.Core.Literal
 import Clash.Core.Term
+import Clash.Core.TermInfo
 import Clash.Core.Type
 import Clash.Core.Var
 import Clash.Debug (traceM) -- TODO Remove when primitives are implemented
@@ -70,30 +74,22 @@ evaluateVarWith eval i = do
 evaluateLiteral :: Literal -> State Env Value
 evaluateLiteral = pure . VLit
 
--- | Default implementation for evaluating a data constructor. This checks the
--- arity of the constructor, and returns VData if it is nullary, or NeData if
--- it takes arguments.
+-- | Default implementation for evaluating a data constructor. This wraps the
+-- data constructor with a lambda / type lambda for every argument required to
+-- ensure the VData constructor is only used for fully applied constructors.
 --
 evaluateData :: DataCon -> State Env Value
-evaluateData dc
-  | null argTys = pure (VData dc [])
-  | otherwise = pure (VNeu (NeData dc []))
- where
-  argTys = fst $ splitFunForallTy (dcType dc)
+evaluateData dc = undefined
 
 -- | Default implementation for evaluating a primitive operation. This checks
--- the arity of the operation, and attempts delta reduction if it is nullary,
--- or returns NePrim if it takes arguments.
+-- the arity of the operation, either performs primitive evaluation or wraps
+-- the VPrim in lambdas / type lambdas for every argument.
 --
 evaluatePrimWith
   :: (PrimInfo -> [Either Value Type] -> State Env Value)
   -> PrimInfo
   -> State Env Value
-evaluatePrimWith eval p
-  | null argTys = traceM ("evaluatePrimWith: " <> show (primName p)) >> eval p []
-  | otherwise = pure (VNeu (NePrim p []))
- where
-  argTys = fst $ splitFunForallTy (primType p)
+evaluatePrimWith eval p = undefined
 
 -- | Default implementation for evaluating lambdas. As a term with a lambda
 -- at the head is already in WHNF, this simply returns the term under the
@@ -290,14 +286,6 @@ quoteTickWith quote x t = do
 
 quoteNeVar :: Id -> State Env (Neutral Nf)
 quoteNeVar = pure . NeVar
-
--- TODO Add lambdas
-quoteNeData :: DataCon -> [Either Value Type] -> State Env (Neutral Nf)
-quoteNeData dc = pure . NeData dc
-
--- TODO Add lambdas
-quoteNePrim :: PrimInfo -> [Either Value Type] -> State Env (Neutral Nf)
-quoteNePrim p = pure . NePrim p
 
 quoteNeAppWith
   :: (Value -> State Env Nf)

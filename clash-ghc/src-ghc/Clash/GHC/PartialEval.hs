@@ -118,7 +118,7 @@ applyToPrim p args
 
 ghcQuote :: Value -> State Env Nf
 ghcQuote = \case
-  VNeu n -> fmap NNeu (ghcQuoteNeutral n)
+  VNeu n -> ghcQuoteNeutral n
   VLit l -> quoteLiteral l
   VData dc args -> quoteDataWith ghcQuote dc args
   VPrim p args -> quotePrimWith ghcQuote p args
@@ -127,12 +127,12 @@ ghcQuote = \case
   VCast x a b -> quoteCastWith ghcQuote x a b
   VTick x t -> quoteTickWith ghcQuote x t
 
-ghcQuoteNeutral :: Neutral Value -> State Env (Neutral Nf)
+ghcQuoteNeutral :: Neutral Value -> State Env Nf
 ghcQuoteNeutral = \case
-  NeVar v -> quoteNeVar v
-  NeData dc args -> quoteNeData dc args
-  NePrim p args -> quoteNePrim p args
-  NeApp x y -> quoteNeAppWith ghcQuote ghcQuoteNeutral x y
-  NeTyApp x ty -> quoteNeTyAppWith ghcQuoteNeutral x ty
-  NeCase x ty xs -> quoteNeCaseWith ghcQuote x ty xs
+  NeVar v -> fmap NNeu (quoteNeVar v)
+  NeData dc args -> quoteNeDataWith ghcQuote dc args
+  NePrim p args -> quoteNePrimWith ghcQuote ghcEvaluatePrim p args
+  NeApp x y -> fmap NNeu (quoteNeAppWith ghcQuote ghcQuoteNeutral x y)
+  NeTyApp x ty -> fmap NNeu (quoteNeTyAppWith ghcQuoteNeutral x ty)
+  NeCase x ty xs -> fmap NNeu (quoteNeCaseWith ghcQuote x ty xs)
 

@@ -1,12 +1,17 @@
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 
 module Clash.Core.TermInfo where
 
+import Data.Traversable (mapAccumL)
+import qualified Data.Text as Text (append, pack)
 import Data.Text.Prettyprint.Doc (line)
 
 import Clash.Core.DataCon
 import Clash.Core.FreeVars
 import Clash.Core.Literal
+import Clash.Core.Name
 import Clash.Core.Pretty
 import Clash.Core.Subst
 import Clash.Core.Term
@@ -17,6 +22,30 @@ import Clash.Core.VarEnv
 import Clash.Debug (debugIsOn)
 import Clash.Util
 import Clash.Util.Interpolate as I
+
+-- | Eta-expand a term, adding lambdas / type lambdas for any arguments to
+-- data constructors or primitives which are not specified.
+--
+-- For example:
+--
+--   Just ~> Λ (a : Type). λ (eta_0 :: a). Just @a eta_0
+-- 
+etaExpand :: TyConMap -> InScopeSet -> Term -> Term
+etaExpand tcm ids x =
+  undefined
+ where
+  missingArgNames = snd (mapAccumL etaNameOf 0 missingArgTys)
+  missingArgTys = drop (length args) argTys
+  argTys = fst $ splitFunForallTy (termType tcm y)
+  (y, args) = collectArgs x
+
+  etaNameOf :: Int -> Either TyVar Type -> (Int, Either TyVar Id)
+  etaNameOf n = \case
+    Left tv -> (n, Left tv)
+    Right ty -> (n + 1, Right
+      . uniqAway ids
+      . mkLocalId ty
+      $ mkUnsafeInternalName (Text.append "eta_" (Text.pack (show n))) 0)
 
 termSize :: Term -> Word
 termSize (Var {})     = 1
