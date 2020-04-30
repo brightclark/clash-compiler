@@ -1,0 +1,12 @@
+resolver: lts-15.10
+
+extra-deps:
+- concurrent-supply-0.1.8
+- ghc-typelits-extra-0.4
+- git: https://github.com/clash-lang/clash-compiler
+  commit: "0353320efb3495d9922c0ee6ab88338c77d85f0a"
+  subdirs: [ clash-prelude, clash-lib, clash-ghc ]
+
+flags:
+  clash-prelude:
+    large-tuples: false
