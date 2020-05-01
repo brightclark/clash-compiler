@@ -16,10 +16,10 @@
 Linux users can use the following command to download `clash-example-project` to their current working directory:
 
 ```
-wget "https://github.com/clash-lang/clash-compiler/archive/1.2.tar.gz" -q -O - | tar -xz clash-compiler-1.2/clash-starters/clash-example-project --strip-components=3
+wget "https://github.com/clash-lang/clash-compiler/archive/1.4.tar.gz" -q -O - | tar -xz clash-compiler-1.4/clash-starters/clash-example-project --strip-components=3
 ```
 
-Users on other operating systems can download [1.2.zip](https://github.com/clash-lang/clash-compiler/archive/1.2.zip) manually, and extract `clash-compiler-1.2/clash-starters/clash-example-project` manually.
+Users on other operating systems can download [1.4.zip](https://github.com/clash-lang/clash-compiler/archive/1.4.zip) manually, and extract `clash-compiler-1.4/clash-starters/clash-example-project` manually.
 
 # Using this project
 
